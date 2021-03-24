@@ -18,7 +18,7 @@ namespace GridSplitNameKeeper
     public static class GridPatch
     {
         
-        private static readonly MethodInfo NewNameRequest = typeof(MyCubeGrid).GetMethod("OnChangeDisplayNameRequest", BindingFlags.NonPublic | BindingFlags.Instance);
+        //private static readonly MethodInfo NewNameRequest = typeof(MyCubeGrid).GetMethod("OnChangeDisplayNameRequest", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static void Patch(PatchContext ctx)
         {
@@ -29,13 +29,13 @@ namespace GridSplitNameKeeper
         private static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
         {
             var newName = GetName(from.DisplayName);
-            
             var newGrid = to;
 
             Task.Run(() =>
             {
                 Thread.Sleep(100);
-                NetworkManager.RaiseEvent(newGrid, NewNameRequest, newName);
+                newGrid.ChangeDisplayNameRequest(newName);
+                //NetworkManager.RaiseEvent(newGrid, NewNameRequest, newName);
             });
 
         }

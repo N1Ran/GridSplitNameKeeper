@@ -36,9 +36,9 @@ namespace GridSplitNameKeeper
                 _sessionManager.SessionStateChanged += SessionChanged;
         }
 
-        private void SessionChanged(ITorchSession session, TorchSessionState newstate)
+        private static void SessionChanged(ITorchSession session, TorchSessionState newState)
         {
-            switch (newstate)
+            switch (newState)
             {
                 case TorchSessionState.Loading:
                     break;
