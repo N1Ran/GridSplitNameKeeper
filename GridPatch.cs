@@ -4,9 +4,11 @@ using System.Linq;
 using System.Threading;
 using System.Reflection;
 using System.Threading.Tasks;
+using NLog;
 using NLog.Fluent;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Blocks;
+using Sandbox.Game.Gui;
 using Torch.Managers;
 using Torch.Managers.PatchManager;
 using VRage.Game.ObjectBuilders.Components;
@@ -17,7 +19,7 @@ namespace GridSplitNameKeeper
     [PatchShim]
     public static class GridPatch
     {
-        
+        private static Logger Log = GridSplitNameKeeperCore.Instance.Log;
         //private static readonly MethodInfo NewNameRequest = typeof(MyCubeGrid).GetMethod("OnChangeDisplayNameRequest", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static void Patch(PatchContext ctx)
@@ -28,8 +30,21 @@ namespace GridSplitNameKeeper
 
         private static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
         {
+            if (!GridSplitNameKeeperCore.Instance.Config.Enable)return;
             var newName = GetName(from.DisplayName);
             var newGrid = to;
+
+
+            if (GridSplitNameKeeperCore.Instance.Config.CleanSplits &&
+                newGrid.BlocksCount < GridSplitNameKeeperCore.Instance.Config.SplitThreshold)
+            {
+                newGrid.Close();
+                Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {from.DisplayName}");
+                return;
+            }
+
+            if (!GridSplitNameKeeperCore.Instance.Config.KeepSplitName) return;
+
 
             Task.Run(() =>
             {
