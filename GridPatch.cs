@@ -33,26 +33,47 @@ namespace GridSplitNameKeeper
             if (!PluginCore.Instance.Config.Enable)return;
             var newName = GetName(from.DisplayName);
             var newGrid = to;
+            var oldGrid = from;
 
 
-            if (PluginCore.Instance.Config.CleanSplits &&
-                newGrid.BlocksCount < PluginCore.Instance.Config.SplitThreshold)
+            PluginCore.Instance.Torch.InvokeAsync(() =>
             {
-                newGrid.SendGridCloseRequest();
-                Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {from.DisplayName}");
-                return;
-            }
+                if (newGrid.BlocksCount > oldGrid.BlocksCount)
+                {
+                    if (PluginCore.Instance.Config.CleanSplits &&
+                        oldGrid.BlocksCount < PluginCore.Instance.Config.SplitThreshold)
+                    {
+                        oldGrid.SendGridCloseRequest();
+                        Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {oldGrid.DisplayName}");
+                    }
+                }
+                else
+                {
+                    if (PluginCore.Instance.Config.CleanSplits &&
+                        newGrid.BlocksCount < PluginCore.Instance.Config.SplitThreshold)
+                    {
+                        newGrid.SendGridCloseRequest();
+                        Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {newGrid.DisplayName}");
+                    }
+                }
+            });
 
             if (!PluginCore.Instance.Config.KeepSplitName) return;
 
+            PluginCore.Instance.Torch.InvokeAsync(() =>
+            {
+                Thread.Sleep(100);
+                newGrid.ChangeDisplayNameRequest(newName);
+            });
 
+            /*
             Task.Run(() =>
             {
                 Thread.Sleep(100);
                 newGrid.ChangeDisplayNameRequest(newName);
                 //NetworkManager.RaiseEvent(newGrid, NewNameRequest, newName);
             });
-
+            */
         }
 
         private static string GetName(string current)
