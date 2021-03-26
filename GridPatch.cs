@@ -19,7 +19,7 @@ namespace GridSplitNameKeeper
     [PatchShim]
     public static class GridPatch
     {
-        private static Logger Log = GridSplitNameKeeperCore.Instance.Log;
+        private static Logger Log = PluginCore.Instance.Log;
         //private static readonly MethodInfo NewNameRequest = typeof(MyCubeGrid).GetMethod("OnChangeDisplayNameRequest", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static void Patch(PatchContext ctx)
@@ -30,20 +30,20 @@ namespace GridSplitNameKeeper
 
         private static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
         {
-            if (!GridSplitNameKeeperCore.Instance.Config.Enable)return;
+            if (!PluginCore.Instance.Config.Enable)return;
             var newName = GetName(from.DisplayName);
             var newGrid = to;
 
 
-            if (GridSplitNameKeeperCore.Instance.Config.CleanSplits &&
-                newGrid.BlocksCount < GridSplitNameKeeperCore.Instance.Config.SplitThreshold)
+            if (PluginCore.Instance.Config.CleanSplits &&
+                newGrid.BlocksCount < PluginCore.Instance.Config.SplitThreshold)
             {
-                newGrid.Close();
+                newGrid.SendGridCloseRequest();
                 Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {from.DisplayName}");
                 return;
             }
 
-            if (!GridSplitNameKeeperCore.Instance.Config.KeepSplitName) return;
+            if (!PluginCore.Instance.Config.KeepSplitName) return;
 
 
             Task.Run(() =>
@@ -58,7 +58,8 @@ namespace GridSplitNameKeeper
         private static string GetName(string current)
         {
             double count = 0;
-            var grids = MyEntities.GetEntities().OfType<MyCubeGrid>().ToList();
+            var grids = new List<MyCubeGrid>(MyEntities.GetEntities().OfType<MyCubeGrid>());
+
             foreach (var grid in grids)
             {
                 if (!grid.DisplayName.Contains(current)) continue;

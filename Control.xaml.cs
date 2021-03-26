@@ -20,14 +20,14 @@ namespace GridSplitNameKeeper
     /// </summary>
     public partial class Control : UserControl
     {
-        private GridSplitNameKeeperCore Plugin { get; }
+        private PluginCore Plugin { get; }
 
         public Control()
         {
             InitializeComponent();
         }
 
-        public Control(GridSplitNameKeeperCore plugin) : this()
+        public Control(PluginCore plugin) : this()
         {
             Plugin = plugin;
             DataContext = plugin.Config;

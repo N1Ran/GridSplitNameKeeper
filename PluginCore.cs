@@ -14,6 +14,7 @@ using Sandbox.Game.Entities.Blocks;
 using Torch;
 using Torch.API;
 using Torch.API.Managers;
+using Torch.API.Plugins;
 using Torch.API.Session;
 using Torch.Managers;
 using Torch.Session;
@@ -22,10 +23,10 @@ using VRage.Network;
 
 namespace GridSplitNameKeeper
 {
-    public class GridSplitNameKeeperCore : TorchPluginBase
+    public class PluginCore : TorchPluginBase, IWpfPlugin
     {
         public readonly Logger Log = LogManager.GetLogger("GridSplitNameKeeper");
-        public static GridSplitNameKeeperCore Instance { get; private set; }
+        public static PluginCore Instance { get; private set; }
         private Control _control;
 
         public UserControl GetControl() => _control ?? (_control = new Control(this));

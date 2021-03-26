@@ -78,7 +78,7 @@
   <ItemGroup>
     <Compile Include="Config.cs" />
     <Compile Include="GridPatch.cs" />
-    <Compile Include="GridSplitNameKeeperCore.cs" />
+    <Compile Include="PluginCore.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Control.xaml.cs">
       <DependentUpon>Control.xaml</DependentUpon>
