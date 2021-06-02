@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Torch.Views;
 
 namespace GridSplitNameKeeper
 {
@@ -31,6 +32,12 @@ namespace GridSplitNameKeeper
         {
             Plugin = plugin;
             DataContext = plugin.Config;
+        }
+
+        private void EditBlocks_OnClick(object sender, RoutedEventArgs e)
+        {
+            var editor = new CollectionEditor() {Owner = Window.GetWindow(this)};
+            editor.Edit<string>(Plugin.Config.IgnoreBlockList, "Ignored Blocks - Use ONLY subtypeId");
         }
 
         private void SaveButton_OnClick(object sender, RoutedEventArgs e)

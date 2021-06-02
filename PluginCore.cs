@@ -44,6 +44,12 @@ namespace GridSplitNameKeeper
             if (_sessionManager != null)
                 _sessionManager.SessionStateChanged += SessionChanged;
 
+            LoadConfig();
+
+        }
+
+        public void LoadConfig()
+        {
             var configFile = Path.Combine(StoragePath, "GridSplitNameKeeper.cfg");
 
             try 

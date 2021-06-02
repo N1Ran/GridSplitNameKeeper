@@ -1,4 +1,7 @@
-﻿using Torch;
+﻿using System.Linq;
+using System.Xml.Serialization;
+using Torch;
+using Torch.Collections;
 
 namespace GridSplitNameKeeper
 {
@@ -48,5 +51,22 @@ namespace GridSplitNameKeeper
                 OnPropertyChanged();
             }
         }
+
+        [XmlIgnore] public MtObservableList<string> IgnoreBlockList { get; } = new MtObservableList<string>();
+
+        [XmlArray(nameof(IgnoreBlockList))]
+        [XmlArrayItem(nameof(IgnoreBlockList), ElementName = "Block Subtypes Only")]
+        public string[] IgnoreBlocksSerial
+        {
+            get => IgnoreBlockList.ToArray();
+            set
+            {
+                IgnoreBlockList.Clear();
+                if (value == null) return;
+                foreach (var k in value)
+                    IgnoreBlockList.Add(k);
+            }
+        }
+
     }
 }
