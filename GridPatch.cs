@@ -1,116 +1,132 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Reflection;
-using System.Threading.Tasks;
 using NLog;
-using NLog.Fluent;
 using Sandbox.Game.Entities;
-using Sandbox.Game.Entities.Blocks;
-using Sandbox.Game.Gui;
-using Sandbox.ModAPI;
-using Torch.Managers;
+using Sandbox.Game.Entities.Cube;
+using Sandbox.Game.World;
 using Torch.Managers.PatchManager;
-using VRage.Game.ModAPI;
-using VRage.Game.ObjectBuilders.Components;
-using VRage.Network;
 
 namespace GridSplitNameKeeper
 {
     [PatchShim]
     public static class GridPatch
     {
-        private static readonly Logger Log = PluginCore.Instance.Log;
-        //private static readonly MethodInfo NewNameRequest = typeof(MyCubeGrid).GetMethod("OnChangeDisplayNameRequest", BindingFlags.NonPublic | BindingFlags.Instance);
+        static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+        static readonly ConcurrentQueue<(long newGridId, string newName, int frameCount)> _changedNames = new ConcurrentQueue<(long, string, int)>();
 
         public static void Patch(PatchContext ctx)
         {
-            /*
-            ctx.GetPattern(
-                    typeof(MyCubeGridGroups).GetMethod("CreateLink", BindingFlags.Public | BindingFlags.Instance))
-                .Suffixes.Add(typeof(GridPatch).GetMethod(nameof(CreateLink), BindingFlags.Static | BindingFlags.NonPublic ));
-            */
-            ctx.GetPattern(typeof(MyCubeGrid).GetMethod("MoveBlocks",  BindingFlags.Static|BindingFlags.NonPublic)).Suffixes
-                .Add(typeof(GridPatch).GetMethod(nameof(OnGridSplit), BindingFlags.Static| BindingFlags.NonPublic));
-        }
-        /*
-        private static void CreateLink(GridLinkTypeEnum type, long linkId, MyCubeGrid parent, MyCubeGrid child)
-        {
-            Log.Warn("Link Created");
+            var patchee = typeof(MyCubeGrid).GetMethod("MoveBlocks", BindingFlags.Static | BindingFlags.NonPublic);
+            var patcher = typeof(GridPatch).GetMethod(nameof(OnGridSplit), BindingFlags.Static | BindingFlags.NonPublic);
+            ctx.GetPattern(patchee).Suffixes.Add(patcher);
         }
 
-        */
-
-        private static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
+        static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
         {
-            if (!PluginCore.Instance.Config.Enable)return;
-            var newName = GetName(from.DisplayName);
-            var newGrid = to;
-            var oldGrid = from;
+            if (!PluginCore.Instance.Config.Enable) return;
 
+            var fromGrid = MyEntities.GetEntityById(from.EntityId) as MyCubeGrid;
+            var toGrid = MyEntities.GetEntityById(to.EntityId) as MyCubeGrid;
+            if (fromGrid == null || !IsOpen(fromGrid)) return;
+            if (toGrid == null || !IsOpen(toGrid)) return;
 
             if (PluginCore.Instance.Config.CleanSplits)
             {
-                PluginCore.Instance.Torch.InvokeAsync(() =>
+                if (fromGrid.BlocksCount < toGrid.BlocksCount)
                 {
-                    if (newGrid.BlocksCount > oldGrid.BlocksCount)
-                    {
-                        if (SkipGrid(oldGrid))return;
-                        if (oldGrid.BlocksCount >= PluginCore.Instance.Config.SplitThreshold || oldGrid.GetBlocks()
-                                .Count(x => x.FatBlock is MyShipController controller && controller.Pilot != null) !=
-                            0) return;
-                        oldGrid.SendGridCloseRequest();
-                        Log.Info($"Closing grid {oldGrid.DisplayName} after splitting from {newGrid.DisplayName}");
-                    }
-                    else
-                    {
-                        if (SkipGrid(newGrid)) return;
-                        if (newGrid.BlocksCount >= PluginCore.Instance.Config.SplitThreshold || newGrid.GetBlocks()
-                                .Count(x => x.FatBlock is MyShipController controller && controller.Pilot != null) !=
-                            0) return;
-                        newGrid.SendGridCloseRequest();
-                        Log.Info($"Closing grid {newGrid.DisplayName} after splitting from {oldGrid.DisplayName}");
-                    }
-                });
+                    TryClose(fromGrid, toGrid.DisplayName);
+                }
+                else
+                {
+                    TryClose(toGrid, fromGrid.DisplayName);
+                }
             }
 
-            if (!PluginCore.Instance.Config.KeepSplitName) return;
-
-            PluginCore.Instance.Torch.InvokeAsync(() =>
+            if (PluginCore.Instance.Config.KeepSplitName)
             {
-                Thread.Sleep(100);
-                newGrid.ChangeDisplayNameRequest(newName);
-            });
+                var newName = CreateName(from.DisplayName);
+                toGrid.ChangeDisplayNameRequest(newName);
 
-       }
-
-        private static bool SkipGrid(MyCubeGrid grid)
-        {
-            var foundIgnoreBlock = false;
-            foreach (var block in grid.CubeBlocks)
-            {
-                if (!PluginCore.Instance.Config.IgnoreBlockList.Contains(block.BlockDefinition.Id.SubtypeId.ToString(),StringComparer.CurrentCultureIgnoreCase))continue;
-                foundIgnoreBlock = true;
-                break;
+                // https://discord.com/channels/929141809769226271/929144465782882324/948240055007322242
+                // > clients doing it's own separated init without syncing object builder with server
+                // > so you have to invoke change custom name request for grid a 1-2 seconds later
+                var targetFrameCount = MySession.Static.GameplayFrameCounter + 60 * 2;
+                _changedNames.Enqueue((to.EntityId, newName, targetFrameCount));
             }
-
-            return foundIgnoreBlock;
         }
 
-        private static string GetName(string current)
+        public static void OnGameLoop()
         {
-            double count = 0;
-            var grids = new List<MyCubeGrid>(MyEntities.GetEntities().OfType<MyCubeGrid>());
-
-            foreach (var grid in grids)
+            while (_changedNames.TryPeek(out var p) &&
+                   p.frameCount >= MySession.Static.GameplayFrameCounter)
             {
-                if (!grid.DisplayName.Contains(current)) continue;
-                count++;
+                _changedNames.TryDequeue(out p);
+                var (newGridId, newName, _) = p;
+                if (MyEntities.TryGetEntityById(newGridId, out var newGrid))
+                {
+                    ((MyCubeGrid)newGrid).ChangeDisplayNameRequest(newName);
+                }
             }
-
-            return $"{current} {count:00}";
         }
 
+        static bool IsOpen(MyCubeGrid grid)
+        {
+            if (grid.Closed) return false;
+            if (grid.MarkedForClose) return false;
+            return true;
+        }
+
+        static void TryClose(MyCubeGrid smallerGrid, string largerGridName)
+        {
+            if (smallerGrid.BlocksCount > PluginCore.Instance.Config.SplitThreshold) return;
+            if (ContainsAnyBlocks(smallerGrid, PluginCore.Instance.Config.IgnoreBlockList)) return;
+            if (smallerGrid.GetBlocks().Any(x => HasPilot(x))) return;
+
+            smallerGrid.SendGridCloseRequest();
+            Log.Info($"Closing grid {smallerGrid.DisplayName} after splitting from {largerGridName}");
+        }
+
+        static string CreateName(string gridName)
+        {
+            var (gridNameWithoutPrefix, count) = SplitNameBySuffix(gridName);
+            return $"{gridNameWithoutPrefix} {count + 1}";
+        }
+
+        static (string, int) SplitNameBySuffix(string gridName)
+        {
+            var lastSpaceIndex = gridName.LastIndexOf(' ');
+            if (lastSpaceIndex < 0) return (gridName, 0);
+
+            var suffixIndex = lastSpaceIndex + 1;
+            if (suffixIndex >= gridName.Length) return (gridName, 0);
+
+            var gridNameWithoutSuffix = gridName.Substring(0, lastSpaceIndex);
+            var suffixStr = gridName.Substring(suffixIndex, gridName.Length - suffixIndex);
+            int.TryParse(suffixStr, out var suffix);
+
+            return (gridNameWithoutSuffix, suffix);
+        }
+
+        static bool HasPilot(MySlimBlock block)
+        {
+            return block.FatBlock is MyShipController controller && controller.Pilot != null;
+        }
+
+        static bool ContainsAnyBlocks(MyCubeGrid grid, IEnumerable<string> blockTypeIds)
+        {
+            foreach (var block in grid.CubeBlocks) //todo optimize
+            {
+                var typeId = block.BlockDefinition.Id.SubtypeId.ToString();
+                if (blockTypeIds.Contains(typeId, StringComparer.CurrentCultureIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

@@ -1,31 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Controls;
 using NLog;
-using Sandbox.Engine.Multiplayer;
-using Sandbox.Game.Entities;
-using Sandbox.Game.Entities.Blocks;
 using Torch;
 using Torch.API;
 using Torch.API.Managers;
 using Torch.API.Plugins;
 using Torch.API.Session;
-using Torch.Managers;
 using Torch.Session;
-using Torch.Utils;
-using VRage.Network;
 
 namespace GridSplitNameKeeper
 {
     public class PluginCore : TorchPluginBase, IWpfPlugin
     {
-        public readonly Logger Log = LogManager.GetLogger("GridSplitNameKeeper");
+        static readonly ILogger Log = LogManager.GetCurrentClassLogger();
         public static PluginCore Instance { get; private set; }
         private Control _control;
 
@@ -89,7 +77,9 @@ namespace GridSplitNameKeeper
             }
         }
 
-
-
+        public override void Update()
+        {
+            GridPatch.OnGameLoop();
+        }
     }
 }
