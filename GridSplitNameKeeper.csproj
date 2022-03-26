@@ -73,6 +73,9 @@
     <Reference Include="VRage.Library">
       <HintPath>..\GameBinaries\VRage.Library.dll</HintPath>
     </Reference>
+    <Reference Include="VRage.Math, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\GameBinaries\VRage.Math.dll</HintPath>
+    </Reference>
     <Reference Include="VRage.Network">
       <HintPath>..\GameBinaries\VRage.Network.dll</HintPath>
     </Reference>
@@ -96,4 +99,12 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\filter.targets" />
+    <ItemGroup>
+        <Content Include="$(ProjectDir)\manifest.xml" CopyToOutputDirectory="PreserveNewest" />
+        <Content Include=".gitignore" />
+    </ItemGroup>
+    <Target Name="Zip" BeforeTargets="AfterBuild">
+        <MakeDir Directories="$(SolutionDir)\Build\" />
+        <ZipDirectory SourceDirectory="$(OutputPath)" DestinationFile="$(SolutionDir)\Build\$(MSBuildProjectName).zip" Overwrite="true" />
+    </Target>
 </Project>

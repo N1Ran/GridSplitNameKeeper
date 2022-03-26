@@ -3,11 +3,16 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using NLog;
+using Sandbox.Game;
 using Sandbox.Game.Entities;
 using Sandbox.Game.Entities.Cube;
 using Sandbox.Game.World;
+using Torch.Managers;
 using Torch.Managers.PatchManager;
+using VRage.Network;
 
 namespace GridSplitNameKeeper
 {
@@ -15,7 +20,7 @@ namespace GridSplitNameKeeper
     public static class GridPatch
     {
         static readonly ILogger Log = LogManager.GetCurrentClassLogger();
-        static readonly ConcurrentQueue<(long newGridId, string newName, int frameCount)> _changedNames = new ConcurrentQueue<(long, string, int)>();
+        static readonly ConcurrentQueue<(long newGridId, string newName, int frameCount, GridAction action)> _queuedAction = new ConcurrentQueue<(long, string, int,GridAction)>();
 
         public static void Patch(PatchContext ctx)
         {
@@ -32,16 +37,18 @@ namespace GridSplitNameKeeper
             var toGrid = MyEntities.GetEntityById(to.EntityId) as MyCubeGrid;
             if (fromGrid == null || !IsOpen(fromGrid)) return;
             if (toGrid == null || !IsOpen(toGrid)) return;
-
+            var targetFrameCount = MySession.Static.GameplayFrameCounter + 60 * 2;
             if (PluginCore.Instance.Config.CleanSplits)
             {
                 if (fromGrid.BlocksCount < toGrid.BlocksCount)
                 {
-                    TryClose(fromGrid, toGrid.DisplayName);
+                    _queuedAction.Enqueue((fromGrid.EntityId,toGrid.DisplayName,targetFrameCount-10,GridAction.delete));
+                    //TryClose(fromGrid, toGrid.DisplayName);
                 }
                 else
                 {
-                    TryClose(toGrid, fromGrid.DisplayName);
+                    //TryClose(toGrid, fromGrid.DisplayName);
+                    _queuedAction.Enqueue((toGrid.EntityId,fromGrid.DisplayName,targetFrameCount-10,GridAction.delete));
                 }
             }
 
@@ -53,19 +60,24 @@ namespace GridSplitNameKeeper
                 // https://discord.com/channels/929141809769226271/929144465782882324/948240055007322242
                 // > clients doing it's own separated init without syncing object builder with server
                 // > so you have to invoke change custom name request for grid a 1-2 seconds later
-                var targetFrameCount = MySession.Static.GameplayFrameCounter + 60 * 2;
-                _changedNames.Enqueue((to.EntityId, newName, targetFrameCount));
+                _queuedAction.Enqueue((to.EntityId, newName, targetFrameCount,GridAction.changeName));
             }
         }
 
         public static void OnGameLoop()
         {
-            while (_changedNames.TryPeek(out var p) &&
+            while (_queuedAction.TryPeek(out var p) &&
                    p.frameCount >= MySession.Static.GameplayFrameCounter)
             {
-                _changedNames.TryDequeue(out p);
-                var (newGridId, newName, _) = p;
-                if (MyEntities.TryGetEntityById(newGridId, out var newGrid))
+                _queuedAction.TryDequeue(out p);
+                var (newGridId, newName, _,gridAction) = p;
+                if (!MyEntities.TryGetEntityById(newGridId, out var newGrid)) continue;
+                if (newGrid.Closed || newGrid.MarkedForClose) continue;
+                if (gridAction == GridAction.delete)
+                {
+                    TryClose((MyCubeGrid)newGrid,newName);
+                }
+                else
                 {
                     ((MyCubeGrid)newGrid).ChangeDisplayNameRequest(newName);
                 }
@@ -127,6 +139,12 @@ namespace GridSplitNameKeeper
             }
 
             return false;
+        }
+        
+        public enum GridAction
+        {
+            delete,
+            changeName
         }
     }
 }
