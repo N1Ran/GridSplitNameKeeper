@@ -132,8 +132,8 @@ namespace GridSplitNameKeeper
         {
             foreach (var block in grid.CubeBlocks) //todo optimize
             {
-                var typeId = block.BlockDefinition.Id.SubtypeId.ToString();
-                if (blockTypeIds.Contains(typeId, StringComparer.CurrentCultureIgnoreCase))
+                var def = block.BlockDefinition.Id;
+                if (blockTypeIds.Contains(def.SubtypeId.ToString(), StringComparer.CurrentCultureIgnoreCase) || blockTypeIds.Contains(def.TypeId.ToString().Substring(16)))
                 {
                     return true;
                 }

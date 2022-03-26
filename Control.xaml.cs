@@ -37,7 +37,7 @@ namespace GridSplitNameKeeper
         private void EditBlocks_OnClick(object sender, RoutedEventArgs e)
         {
             var editor = new CollectionEditor() {Owner = Window.GetWindow(this)};
-            editor.Edit<string>(Plugin.Config.IgnoreBlockList, "Ignored Blocks - Use ONLY subtypeId");
+            editor.Edit<string>(Plugin.Config.IgnoreBlockList, "Ignored Blocks - Use ONLY TypeId or subtypeId");
         }
 
         private void SaveButton_OnClick(object sender, RoutedEventArgs e)
