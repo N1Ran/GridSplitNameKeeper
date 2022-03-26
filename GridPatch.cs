@@ -56,7 +56,7 @@ namespace GridSplitNameKeeper
             {
                 var newName = CreateName(from.DisplayName);
                 toGrid.ChangeDisplayNameRequest(newName);
-
+                Log.Info($"Renamed {toGrid.DisplayName} to {newName}");
                 // https://discord.com/channels/929141809769226271/929144465782882324/948240055007322242
                 // > clients doing it's own separated init without syncing object builder with server
                 // > so you have to invoke change custom name request for grid a 1-2 seconds later
@@ -80,7 +80,6 @@ namespace GridSplitNameKeeper
                 else
                 {
                     ((MyCubeGrid)newGrid).ChangeDisplayNameRequest(newName);
-                    Log.Info($"Renamed {newGrid.DisplayName} to {newName}");
                 }
             }
         }
