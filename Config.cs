@@ -11,7 +11,10 @@ namespace GridSplitNameKeeper
         private bool _rename = true;
         private bool _enableSplitCleaner;
         private int _splitThreshold = 0;
+        private string _logFileName = "GridSplitNameKeeper-${shortdate}.log";
 
+
+        public string LogFileName { get => _logFileName; set => SetValue(ref _logFileName, value); }
 
         public bool Enable
         {

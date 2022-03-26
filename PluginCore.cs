@@ -33,6 +33,7 @@ namespace GridSplitNameKeeper
                 _sessionManager.SessionStateChanged += SessionChanged;
 
             LoadConfig();
+            LoggerConfig.Set();
 
         }
 

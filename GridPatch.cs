@@ -19,7 +19,7 @@ namespace GridSplitNameKeeper
     [PatchShim]
     public static class GridPatch
     {
-        static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+        static readonly ILogger Log = LogManager.GetLogger("GridSplitNameKeeper");
         static readonly ConcurrentQueue<(long newGridId, string newName, int frameCount, GridAction action)> _queuedAction = new ConcurrentQueue<(long, string, int,GridAction)>();
 
         public static void Patch(PatchContext ctx)
@@ -80,6 +80,7 @@ namespace GridSplitNameKeeper
                 else
                 {
                     ((MyCubeGrid)newGrid).ChangeDisplayNameRequest(newName);
+                    Log.Info($"Renamed {newGrid.DisplayName} to {newName}");
                 }
             }
         }
