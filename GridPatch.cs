@@ -19,7 +19,7 @@ namespace GridSplitNameKeeper
     [PatchShim]
     public static class GridPatch
     {
-        static readonly ILogger Log = LogManager.GetLogger("GridSplitNameKeeper");
+        private static readonly ILogger Log = LogManager.GetLogger("GridSplitNameKeeper");
         static readonly ConcurrentQueue<(long newGridId, string newName, int frameCount, GridAction action)> _queuedAction = new ConcurrentQueue<(long, string, int,GridAction)>();
 
         public static void Patch(PatchContext ctx)
@@ -29,7 +29,7 @@ namespace GridSplitNameKeeper
             ctx.GetPattern(patchee).Suffixes.Add(patcher);
         }
 
-        static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
+        private static void OnGridSplit(ref MyCubeGrid from, ref MyCubeGrid to)
         {
             if (!PluginCore.Instance.Config.Enable) return;
 
@@ -52,16 +52,14 @@ namespace GridSplitNameKeeper
                 }
             }
 
-            if (PluginCore.Instance.Config.KeepSplitName)
-            {
-                var newName = CreateName(from.DisplayName);
-                toGrid.ChangeDisplayNameRequest(newName);
-                Log.Info($"Renamed {toGrid.DisplayName} to {newName}");
-                // https://discord.com/channels/929141809769226271/929144465782882324/948240055007322242
-                // > clients doing it's own separated init without syncing object builder with server
-                // > so you have to invoke change custom name request for grid a 1-2 seconds later
-                _queuedAction.Enqueue((to.EntityId, newName, targetFrameCount,GridAction.changeName));
-            }
+            if (!PluginCore.Instance.Config.KeepSplitName || toGrid.BlocksCount <= PluginCore.Instance.Config.RenameGridBlockMin) return;
+            var newName = CreateName(from.DisplayName);
+            toGrid.ChangeDisplayNameRequest(newName);
+            Log.Info($"Renamed {toGrid.DisplayName} to {newName}");
+            // https://discord.com/channels/929141809769226271/929144465782882324/948240055007322242
+            // > clients doing it's own separated init without syncing object builder with server
+            // > so you have to invoke change custom name request for grid a 1-2 seconds later
+            _queuedAction.Enqueue((to.EntityId, newName, targetFrameCount,GridAction.changeName));
         }
 
         public static void OnGameLoop()
@@ -84,30 +82,29 @@ namespace GridSplitNameKeeper
             }
         }
 
-        static bool IsOpen(MyCubeGrid grid)
+        private static bool IsOpen(MyCubeGrid grid)
         {
             if (grid.Closed) return false;
-            if (grid.MarkedForClose) return false;
-            return true;
+            return !grid.MarkedForClose;
         }
 
-        static void TryClose(MyCubeGrid smallerGrid, string largerGridName)
+        private static void TryClose(MyCubeGrid smallerGrid, string largerGridName)
         {
             if (smallerGrid.BlocksCount > PluginCore.Instance.Config.SplitThreshold) return;
             if (ContainsAnyBlocks(smallerGrid, PluginCore.Instance.Config.IgnoreBlockList)) return;
-            if (smallerGrid.GetBlocks().Any(x => HasPilot(x))) return;
+            if (smallerGrid.GetBlocks().Any(HasPilot)) return;
 
             smallerGrid.SendGridCloseRequest();
             Log.Info($"Closing grid {smallerGrid.DisplayName} after splitting from {largerGridName}");
         }
 
-        static string CreateName(string gridName)
+        private static string CreateName(string gridName)
         {
             var (gridNameWithoutPrefix, count) = SplitNameBySuffix(gridName);
             return $"{gridNameWithoutPrefix} {count + 1}";
         }
 
-        static (string, int) SplitNameBySuffix(string gridName)
+        private static (string, int) SplitNameBySuffix(string gridName)
         {
             var lastSpaceIndex = gridName.LastIndexOf(' ');
             if (lastSpaceIndex < 0) return (gridName, 0);
@@ -122,12 +119,12 @@ namespace GridSplitNameKeeper
             return (gridNameWithoutSuffix, suffix);
         }
 
-        static bool HasPilot(MySlimBlock block)
+        private static bool HasPilot(MySlimBlock block)
         {
             return block.FatBlock is MyShipController controller && controller.Pilot != null;
         }
 
-        static bool ContainsAnyBlocks(MyCubeGrid grid, IEnumerable<string> blockTypeIds)
+        private static bool ContainsAnyBlocks(MyCubeGrid grid, IEnumerable<string> blockTypeIds)
         {
             foreach (var block in grid.CubeBlocks) //todo optimize
             {
@@ -140,8 +137,8 @@ namespace GridSplitNameKeeper
 
             return false;
         }
-        
-        public enum GridAction
+
+        private enum GridAction
         {
             delete,
             changeName

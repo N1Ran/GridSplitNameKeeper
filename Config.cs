@@ -12,6 +12,7 @@ namespace GridSplitNameKeeper
         private bool _enableSplitCleaner;
         private int _splitThreshold = 0;
         private string _logFileName = "GridSplitNameKeeper-${shortdate}.log";
+        private int _renameGridBlockMin = 0;
 
 
         public string LogFileName { get => _logFileName; set => SetValue(ref _logFileName, value); }
@@ -51,6 +52,18 @@ namespace GridSplitNameKeeper
             set
             {
                 _splitThreshold = value;
+                OnPropertyChanged();
+            }
+        }
+        /// <summary>
+        /// Grid with block count below this will not be renames
+        /// </summary>
+        public int RenameGridBlockMin
+        {
+            get => _renameGridBlockMin;
+            set
+            {
+                _renameGridBlockMin = value;
                 OnPropertyChanged();
             }
         }
