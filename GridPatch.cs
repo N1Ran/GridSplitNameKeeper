@@ -112,11 +112,11 @@ namespace GridSplitNameKeeper
             var suffixIndex = lastSpaceIndex + 1;
             if (suffixIndex >= gridName.Length) return (gridName, 0);
 
-            var gridNameWithoutSuffix = gridName.Substring(0, lastSpaceIndex);
             var suffixStr = gridName.Substring(suffixIndex, gridName.Length - suffixIndex);
-            int.TryParse(suffixStr, out var suffix);
+            if (!int.TryParse(suffixStr.Trim(), out var numbering)) return (gridName, 0);
 
-            return (gridNameWithoutSuffix, suffix);
+            var gridNameWithoutSuffix = gridName.Substring(0, lastSpaceIndex);
+            return (gridNameWithoutSuffix, numbering);
         }
 
         private static bool HasPilot(MySlimBlock block)
